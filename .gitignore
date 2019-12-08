@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# YOLO v3
+coco/
+__pycache__/
+checkpoints/
+logs/
+output/
+*.weights
+
