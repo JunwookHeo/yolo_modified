@@ -135,4 +135,5 @@ checkpoints/
 logs/
 output/
 *.weights
+.vscode/
 
