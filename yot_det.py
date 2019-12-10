@@ -67,8 +67,8 @@ if __name__ == "__main__":
 
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-    imgs = []  # Stores image paths
-    img_detections = []  # Stores detections for each image index
+    ## TODO : make class id assigned autometically from rolo images
+    target_cls = 0
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -78,53 +78,47 @@ if __name__ == "__main__":
 
         # Get detections
         with torch.no_grad():
-            detections = model(input_imgs)
-            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
+            (detections, colimg) = model(input_imgs)
+            detection_list = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
 
         # Log progress
         current_time = time.time()
         inference_time = datetime.timedelta(seconds=current_time - prev_time)
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
-
-        # Save image and detections
-        imgs.extend(img_paths)
-        img_detections.extend(detections)
-     
-    
-    target_cls = 0
-    print("\nSaving results:")
-    # Iterate through images and save plot of detections
-    for img_i, (path, detections) in enumerate(zip(imgs, img_detections)):
-
-        print("(%d) detections: '%s'" % (img_i, detections))
         
-        img = np.array(Image.open(path))
-        # Find a location with the selected class ID
-        location = np.zeros(6, dtype=float)
+        print("\nSaving results:")
 
-        if detections is not None:
-            # Rescale boxes to original image
-            detections = rescale_boxes(detections, opt.img_size, img.shape[:2])
-            unique_labels = detections[:, -1].cpu().unique()
-            n_cls_preds = len(unique_labels)
-            
-            for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-                if int(cls_pred) != target_cls:
-                    continue
-                print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
+        for detections in detection_list:
+            img = np.array(Image.open(img_paths[0]))
+            # Find a location with the selected class ID
+            location = np.zeros(6, dtype=float)
 
-                box_w = x2 - x1
-                box_h = y2 - y1
+            if detections is not None:
+                # Rescale boxes to original image
+                detections = rescale_boxes(detections, opt.img_size, img.shape[:2])
+                unique_labels = detections[:, -1].cpu().unique()
+                n_cls_preds = len(unique_labels)
+                
+                for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
+                    if int(cls_pred) != target_cls:
+                        continue
+                    print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
-                location[0] = x1
-                location[1] = y1
-                location[2] = x2
-                location[3] = y2
-                location[4] = conf
-                location[5] = cls_pred
-                break
+                    box_w = x2 - x1
+                    box_h = y2 - y1
+
+                    location[0] = x1
+                    location[1] = y1
+                    location[2] = x2
+                    location[3] = y2
+                    location[4] = conf
+                    location[5] = cls_pred
+                    break
 
         # save a location and a feature image
-        filename = path.split("/")[-1].split(".")[0]
-        np.save(f"output/{filename}.npy", location)
+        filename = img_paths[0].split("/")[-1].split(".")[0]
+        save = np.concatenate((colimg.reshape(-1).numpy(), location))
+        np.save(f"output/{filename}.npy", save)
+        print(" saving the location : " + save[-6:])
+             

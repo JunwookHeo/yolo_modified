@@ -64,7 +64,11 @@ def create_modules(module_defs):
         elif module_def["type"] == "shortcut":
             filters = output_filters[1:][int(module_def["from"])]
             modules.add_module(f"shortcut_{module_i}", EmptyLayer())
-
+        
+        elif module_def["type"] == "collector":
+            filters = output_filters[1:][int(module_def["from"])]
+            modules.add_module(f"collector{module_i}", EmptyLayer())
+        
         elif module_def["type"] == "yolo":
             anchor_idxs = [int(x) for x in module_def["mask"].split(",")]
             # Extract anchors
@@ -103,6 +107,13 @@ class EmptyLayer(nn.Module):
 
     def __init__(self):
         super(EmptyLayer, self).__init__()
+
+
+class CollectLayer(nn.Module):
+    """Placeholder for 'collector' layers"""
+
+    def __init__(self):
+        super(CollectLayer, self).__init__()
 
 
 class YOLOLayer(nn.Module):
@@ -244,11 +255,13 @@ class Darknet(nn.Module):
         self.img_size = img_size
         self.seen = 0
         self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
+        self.has_collector = False
 
     def forward(self, x, targets=None):
         img_dim = x.shape[2]
         loss = 0
         layer_outputs, yolo_outputs = [], []
+        #colimg = None
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
             if module_def["type"] in ["convolutional", "upsample", "maxpool"]:
                 x = module(x)
@@ -257,12 +270,19 @@ class Darknet(nn.Module):
             elif module_def["type"] == "shortcut":
                 layer_i = int(module_def["from"])
                 x = layer_outputs[-1] + layer_outputs[layer_i]
+            elif module_def["type"] == "collector":
+                x = layer_outputs[-1]
+                colimg = x.clone()
+                self.has_collector = True
             elif module_def["type"] == "yolo":
                 x, layer_loss = module[0](x, targets, img_dim)
                 loss += layer_loss
                 yolo_outputs.append(x)
             layer_outputs.append(x)
         yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
+        if self.has_collector == True:
+            return (yolo_outputs, colimg) if targets is None else (loss, yolo_outputs, colimg)
+
         return yolo_outputs if targets is None else (loss, yolo_outputs)
 
     def load_darknet_weights(self, weights_path):
