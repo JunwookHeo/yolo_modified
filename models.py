@@ -81,7 +81,7 @@ def create_modules(module_defs):
         # Register module list and number of output filters
         module_list.append(modules)
         output_filters.append(filters)
-    print(output_filters)
+    #print(output_filters)
     return hyperparams, module_list
 
 

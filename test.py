@@ -76,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     opt = parser.parse_args()
-    print(opt)
+    #print(opt)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

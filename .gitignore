@@ -136,4 +136,5 @@ logs/
 output/
 *.weights
 .vscode/
+rolo_data/
 
