@@ -69,6 +69,9 @@ if __name__ == "__main__":
 
     ## TODO : make class id assigned autometically from rolo images
     target_cls = 0
+    folder = os.path.dirname(opt.image_folder)
+    with open(os.path.join(folder,'class.txt'), 'r') as file:
+        target_cls = int(file.readline())                
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -87,12 +90,10 @@ if __name__ == "__main__":
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
         
-        print("\nSaving results:")
-
         for detections in detection_list:
             img = np.array(Image.open(img_paths[0]))
             # Find a location with the selected class ID
-            location = np.zeros(6, dtype=float)
+            location = np.zeros(5, dtype=float)
 
             if detections is not None:
                 # Rescale boxes to original image
@@ -102,23 +103,25 @@ if __name__ == "__main__":
                 
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                     if int(cls_pred) != target_cls:
+                        print("class id :", cls_pred)
                         continue
                     print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
                     box_w = x2 - x1
                     box_h = y2 - y1
 
-                    location[0] = x1
-                    location[1] = y1
-                    location[2] = x2
-                    location[3] = y2
+                    # Normalize the coordinates with image width and height and class id
+                    # [x1, y1, width, heigt, confidence, class id]
+                    location[0] = x1/img.shape[0]
+                    location[1] = y1/img.shape[1]
+                    location[2] = box_w/img.shape[0]
+                    location[3] = box_h/img.shape[1]
                     location[4] = conf
-                    location[5] = cls_pred
                     break
 
         # save a location and a feature image
         filename = img_paths[0].split("/")[-1].split(".")[0]
         save = np.concatenate((colimg.reshape(-1).numpy(), location))
         np.save(f"output/{filename}.npy", save)
-        print(" saving the location : " + save[-6:])
+        print("\t Saving the location : ", save[-5:])
              
