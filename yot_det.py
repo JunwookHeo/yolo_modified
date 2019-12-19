@@ -56,8 +56,9 @@ if __name__ == "__main__":
 
     model.eval()  # Set in evaluation mode
 
+    img_folder = os.path.join(opt.image_folder, 'images')
     dataloader = DataLoader(
-        ImageFolder(opt.image_folder, img_size=opt.img_size),
+        ImageFolder(img_folder, img_size=opt.img_size),
         batch_size=opt.batch_size,
         shuffle=False,
         num_workers=opt.n_cpu,
@@ -69,10 +70,24 @@ if __name__ == "__main__":
 
     ## TODO : make class id assigned autometically from rolo images
     target_cls = 0
-    folder = os.path.dirname(opt.image_folder)
-    with open(os.path.join(folder,'class.txt'), 'r') as file:
-        target_cls = int(file.readline())                
+    #with open(os.path.join(opt.image_folder,'class.txt'), 'r') as file:
+    #    target_cls = int(file.readline())                
 
+    gt_list = []
+    with open(os.path.join(opt.image_folder,'groundtruth_rect.txt'), 'r') as file:
+        labels = file.readlines()
+        
+    for label in labels:
+        l = label.split('\t')   # for gt type 2
+        if len(l) < 4:
+            l = label.split(',') # for gt type 1
+        gt_list.append(l)
+
+    # Saving folder
+    foldername = os.path.join(opt.image_folder,'yot_out')
+    if not os.path.exists(foldername):
+        os.makedirs(foldername)
+        
     print("\nPerforming object detection:")
     prev_time = time.time()
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
@@ -89,7 +104,7 @@ if __name__ == "__main__":
         inference_time = datetime.timedelta(seconds=current_time - prev_time)
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
-        
+                        
         for detections in detection_list:
             img = np.array(Image.open(img_paths[0]))
             # Find a location with the selected class ID
@@ -101,27 +116,37 @@ if __name__ == "__main__":
                 unique_labels = detections[:, -1].cpu().unique()
                 n_cls_preds = len(unique_labels)
                 
+                min_dist = img.shape[0]*img.shape[0] + img.shape[1]*img.shape[1]
+
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                     if int(cls_pred) != target_cls:
                         print("class id :", cls_pred)
-                        continue
+                        #continue
                     print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
                     box_w = x2 - x1
                     box_h = y2 - y1
 
-                    # Normalize the coordinates with image width and height and class id
-                    # [x1, y1, width, heigt, confidence, class id]
-                    location[0] = x1/img.shape[0]
-                    location[1] = y1/img.shape[1]
-                    location[2] = box_w/img.shape[0]
-                    location[3] = box_h/img.shape[1]
-                    location[4] = conf
-                    break
+                    p = torch.as_tensor(np.array([x1+box_w/2, y1+box_h/2], dtype=int), dtype=torch.float32)
+                    l = torch.as_tensor(np.array(gt_list[batch_i], dtype=int), dtype=torch.float32)
+                    l = torch.as_tensor(np.array([l[0]+l[2]/2, l[1]+l[3]/2], dtype=int), dtype=torch.float32)
+
+                    dist = torch.norm(p - l)
+                    if min_dist > dist:
+                        min_dist = dist
+
+                        # Normalize the coordinates with image width and height and class id
+                        # [x1, y1, width, heigt, confidence, class id]
+                        location[0] = x1/img.shape[0]
+                        location[1] = y1/img.shape[1]
+                        location[2] = box_w/img.shape[0]
+                        location[3] = box_h/img.shape[1]
+                        location[4] = conf
 
         # save a location and a feature image
         filename = img_paths[0].split("/")[-1].split(".")[0]
         save = np.concatenate((colimg.reshape(-1).numpy(), location))
-        np.save(f"output/{filename}.npy", save)
+            
+        np.save(f"{foldername}/{filename}.npy", save)
         print("\t Saving the location : ", save[-5:])
              
