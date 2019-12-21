@@ -70,8 +70,8 @@ if __name__ == "__main__":
 
     ## TODO : make class id assigned autometically from rolo images
     target_cls = 0
-    #with open(os.path.join(opt.image_folder,'class.txt'), 'r') as file:
-    #    target_cls = int(file.readline())                
+    with open(os.path.join(opt.image_folder,'class.txt'), 'r') as file:
+        target_cls = int(file.readline())                
 
     gt_list = []
     with open(os.path.join(opt.image_folder,'groundtruth_rect.txt'), 'r') as file:
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                     if int(cls_pred) != target_cls:
                         print("class id :", cls_pred)
-                        #continue
+                        continue
                     print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
                     box_w = x2 - x1
