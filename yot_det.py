@@ -37,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+    parser.add_argument("--tracking_thres", type=float, default=0.2, help="path to checkpoint model")
     opt = parser.parse_args()
     print(opt)
 
@@ -69,9 +70,13 @@ if __name__ == "__main__":
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
     ## TODO : make class id assigned autometically from rolo images
-    target_cls = 0
+    target_cls = []
     with open(os.path.join(opt.image_folder,'class.txt'), 'r') as file:
-        target_cls = int(file.readline())                
+        try:
+            for n in file.readlines():
+                target_cls.append(int(n))
+        except ValueError:
+            print(target_cls)
 
     gt_list = []
     with open(os.path.join(opt.image_folder,'groundtruth_rect.txt'), 'r') as file:
@@ -116,24 +121,22 @@ if __name__ == "__main__":
                 unique_labels = detections[:, -1].cpu().unique()
                 n_cls_preds = len(unique_labels)
                 
-                min_dist = img.shape[0]*img.shape[0] + img.shape[1]*img.shape[1]
+                max_iou = opt.tracking_thres
 
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-                    if int(cls_pred) != target_cls:
-                        print("class id :", cls_pred)
+                    if int(cls_pred) not in target_cls:
+                        print("\t\tclass id :", cls_pred)
                         continue
                     print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
                     box_w = x2 - x1
                     box_h = y2 - y1
 
-                    p = torch.as_tensor(np.array([x1+box_w/2, y1+box_h/2], dtype=int), dtype=torch.float32)
-                    l = torch.as_tensor(np.array(gt_list[batch_i], dtype=int), dtype=torch.float32)
-                    l = torch.as_tensor(np.array([l[0]+l[2]/2, l[1]+l[3]/2], dtype=int), dtype=torch.float32)
-
-                    dist = torch.norm(p - l)
-                    if min_dist > dist:
-                        min_dist = dist
+                    b1 = torch.tensor([[x1, y1, box_w, box_h]])
+                    b2 = torch.tensor([np.array(gt_list[batch_i], dtype=float)], dtype=torch.float32)
+                    iou = bbox_iou(b1, b2, False)
+                    if iou >= max_iou:
+                        max_iou = iou
 
                         # Normalize the coordinates with image width and height and class id
                         # [x1, y1, width, heigt, confidence, class id]
