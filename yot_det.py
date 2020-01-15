@@ -22,25 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.ticker import NullLocator
 
-if __name__ == "__main__":
-    import multiprocessing
-    multiprocessing.set_start_method('spawn', True)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="weights/yolov3.weights", help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
-    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
-    parser.add_argument("--tracking_thres", type=float, default=0.2, help="path to checkpoint model")
-    opt = parser.parse_args()
-    print(opt)
-
+def run(opt, image_folder):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     os.makedirs("output", exist_ok=True)
@@ -57,7 +39,7 @@ if __name__ == "__main__":
 
     model.eval()  # Set in evaluation mode
 
-    img_folder = os.path.join(opt.image_folder, 'images')
+    img_folder = os.path.join(image_folder, 'images')
     dataloader = DataLoader(
         ImageFolder(img_folder, img_size=opt.img_size),
         batch_size=opt.batch_size,
@@ -71,7 +53,7 @@ if __name__ == "__main__":
 
     ## TODO : make class id assigned autometically from rolo images
     target_cls = []
-    with open(os.path.join(opt.image_folder,'class.txt'), 'r') as file:
+    with open(os.path.join(image_folder,'class.txt'), 'r') as file:
         try:
             for n in file.readlines():
                 target_cls.append(int(n))
@@ -79,7 +61,7 @@ if __name__ == "__main__":
             print(target_cls)
 
     gt_list = []
-    with open(os.path.join(opt.image_folder,'groundtruth_rect.txt'), 'r') as file:
+    with open(os.path.join(image_folder,'groundtruth_rect.txt'), 'r') as file:
         labels = file.readlines()
         
     for label in labels:
@@ -89,7 +71,7 @@ if __name__ == "__main__":
         gt_list.append(l)
 
     # Saving folder
-    foldername = os.path.join(opt.image_folder,'yot_out')
+    foldername = os.path.join(image_folder,'yot_out')
     if not os.path.exists(foldername):
         os.makedirs(foldername)
         
@@ -128,20 +110,27 @@ if __name__ == "__main__":
                         print("\t\tclass id :", cls_pred)
                         continue
                     print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
-
+                    
                     box_w = x2 - x1
                     box_h = y2 - y1
+                    cx = x1 + box_w/2
+                    cy = y1 + box_h/2
 
-                    b1 = torch.tensor([[x1, y1, box_w, box_h]])
-                    b2 = torch.tensor([np.array(gt_list[batch_i], dtype=float)], dtype=torch.float32)
+                    b1 = torch.tensor([[cx, cy, box_w, box_h]])
+                    
+                    b2 = np.array(gt_list[batch_i], dtype=float)
+                    b2[0] += b2[2]/2.
+                    b2[1] += b2[3]/2.
+                    b2 = torch.tensor([b2], dtype=torch.float32)
+                    
                     iou = bbox_iou(b1, b2, False)
                     if iou >= max_iou:
                         max_iou = iou
 
                         # Normalize the coordinates with image width and height and class id
                         # [x1, y1, width, heigt, confidence, class id]
-                        location[0] = x1/img.shape[0]
-                        location[1] = y1/img.shape[1]
+                        location[0] = cx/img.shape[0]
+                        location[1] = cy/img.shape[1]
                         location[2] = box_w/img.shape[0]
                         location[3] = box_h/img.shape[1]
                         location[4] = conf
@@ -153,3 +142,36 @@ if __name__ == "__main__":
         np.save(f"{foldername}/{filename}.npy", save)
         print("\t Saving the location : ", save[-5:])
              
+if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.set_start_method('spawn', True)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
+    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
+    parser.add_argument("--weights_path", type=str, default="weights/yolov3.weights", help="path to weights file")
+    parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
+    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
+    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
+    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+    parser.add_argument("--tracking_thres", type=float, default=0.2, help="path to checkpoint model")
+    opt = parser.parse_args()
+    print(opt)
+
+    f = opt.image_folder
+    if f.lower().endswith(('*')):
+        root = os.path.dirname(f)
+        for l in os.listdir(root):
+            if l == 'BlurCar4':
+                continue
+            if l == 'BlurCar3':
+                continue
+            l = os.path.join(root, l)
+            if os.path.exists(os.path.join(l, 'yot_out')):
+                run(opt, l)
+                print(l)
+    else:
+        run(opt, f)
