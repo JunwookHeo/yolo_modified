@@ -129,10 +129,10 @@ def run(opt, image_folder):
 
                         # Normalize the coordinates with image width and height and class id
                         # [x1, y1, width, heigt, confidence, class id]
-                        location[0] = cx/img.shape[0]
-                        location[1] = cy/img.shape[1]
-                        location[2] = box_w/img.shape[0]
-                        location[3] = box_h/img.shape[1]
+                        location[0] = cx/img.shape[1]
+                        location[1] = cy/img.shape[0]
+                        location[2] = box_w/img.shape[1]
+                        location[3] = box_h/img.shape[0]
                         location[4] = conf
 
         # save a location and a feature image
@@ -165,13 +165,8 @@ if __name__ == "__main__":
     if f.lower().endswith(('*')):
         root = os.path.dirname(f)
         for l in os.listdir(root):
-            if l == 'BlurCar4':
-                continue
-            if l == 'BlurCar3':
-                continue
             l = os.path.join(root, l)
-            if os.path.exists(os.path.join(l, 'yot_out')):
-                run(opt, l)
-                print(l)
+            run(opt, l)
+            print(l)
     else:
         run(opt, f)

@@ -5,7 +5,7 @@ import os
 
 if __name__ == "__main__":
     print(sys.argv)
-    target_dir = 'data/rolo_data'
+    target_dir = '../rolo_data_2/Jogging2'
 
     # Rename img to images
     for root, dirs,_ in os.walk(target_dir):
