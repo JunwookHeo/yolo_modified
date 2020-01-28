@@ -95,7 +95,7 @@ def run(opt, image_folder):
         for detections in detection_list:
             img = np.array(Image.open(img_paths[0]))
             # Find a location with the selected class ID
-            location = np.zeros(5, dtype=float)
+            location = np.array([0.5,0.5,1,1,0], dtype=float) #np.zeros(5, dtype=float)
 
             if detections is not None:
                 # Rescale boxes to original image
@@ -128,7 +128,7 @@ def run(opt, image_folder):
                         max_iou = iou
 
                         # Normalize the coordinates with image width and height and class id
-                        # [x1, y1, width, heigt, confidence, class id]
+                        # [cx, cy, width, heigt, confidence, class id]
                         location[0] = cx/img.shape[1]
                         location[1] = cy/img.shape[0]
                         location[2] = box_w/img.shape[1]
