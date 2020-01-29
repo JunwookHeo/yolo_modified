@@ -95,7 +95,7 @@ def run(opt, image_folder):
         for detections in detection_list:
             img = np.array(Image.open(img_paths[0]))
             # Find a location with the selected class ID
-            location = np.array([0.5,0.5,1,1,0], dtype=float) #np.zeros(5, dtype=float)
+            location = np.array([0.5,0.5,0,0,0], dtype=float) #np.zeros(5, dtype=float)
 
             if detections is not None:
                 # Rescale boxes to original image
