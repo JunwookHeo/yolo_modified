@@ -1,11 +1,12 @@
 # Generating yolo test list from rolo dataset.
 import sys
 import os
-
+import numpy as np
+from PIL import Image
 
 if __name__ == "__main__":
     print(sys.argv)
-    target_dir = '../rolo_data_2/Jogging2'
+    target_dir = '../Tennis'
 
     # Rename img to images
     for root, dirs,_ in os.walk(target_dir):
@@ -46,6 +47,37 @@ if __name__ == "__main__":
                             file.write(os.path.abspath(os.path.join(images,f)) + '\n')
 
                 # Gnerate label files
+                target_cls = []
+                with open(os.path.join(root,'class.txt'), 'r') as file:
+                    try:
+                        for n in file.readlines():
+                            target_cls.append(int(n))
+                    except ValueError:
+                        print(target_cls)
+                        
+                name = os.path.join(root,'groundtruth_rect.txt')
+                if os.path.exists(name):
+                    gts = np.loadtxt(name, delimiter=',')
+                
+                for i, f in enumerate(files):                    
+                    frame = np.array(Image.open(os.path.join(images, f)))
+                    if f.lower().endswith(('.png', '.jpg')):
+                        l = f.replace(".png", ".txt").replace(".jpg", ".txt")
+                        with open(os.path.join(lables, l), "w") as file:
+                            try:
+                                gt = gts[i]
+                                cx = gt[0]/frame.shape[1]
+                                cy = gt[1]/frame.shape[0]
+                                w = gt[2]/frame.shape[1]
+                                h = gt[3]/frame.shape[0]
+                                cx = cx + w/2
+                                cy = cy + h/2
+                                file.write("{} {:.6f} {:.6f} {:.6f} {:.6f}".format(target_cls[0], cx, cy, w, h))
+                            except:
+                                print('Exception : ' + root + ' ' + f)
+
+
+                '''
                 label_list = []
                 with open(os.path.join(root,'groundtruth_rect.txt')) as file:
                     label_list = file.readlines()
@@ -59,4 +91,4 @@ if __name__ == "__main__":
                             except:
                                 print('Exception : ' + root + ' ' + f)
 
-                
+                '''
