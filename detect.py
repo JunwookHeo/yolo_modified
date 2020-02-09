@@ -135,6 +135,16 @@ if __name__ == "__main__":
                     bbox={"color": color, "pad": 0},
                 )
 
+            filename = path.split("/")[-1].split(".")[0]
+            with open(f"output/{filename}.txt", "w") as file:
+                for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
+                    w = (x2 - x1)/img.shape[1]
+                    h = (y2 - y1)/img.shape[0]
+                    cx = x1/img.shape[1] + w/2
+                    cy = y1/img.shape[0] + h/2
+                    
+                    file.write("{} {:.6f} {:.6f} {:.6f} {:.6f}\n".format(int(cls_pred), cx, cy, w, h))
+                    
         # Save generated image with detections
         plt.axis("off")
         plt.gca().xaxis.set_major_locator(NullLocator())
@@ -142,3 +152,5 @@ if __name__ == "__main__":
         filename = path.split("/")[-1].split(".")[0]
         plt.savefig(f"output/{filename}.png", bbox_inches="tight", pad_inches=0.0)
         plt.close()
+
+        
