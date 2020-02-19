@@ -6,7 +6,7 @@ from PIL import Image
 
 if __name__ == "__main__":
     print(sys.argv)
-    target_dir = '../Tennis'
+    target_dir = '../yot_unseen'
 
     # Rename img to images
     for root, dirs,_ in os.walk(target_dir):
@@ -57,8 +57,11 @@ if __name__ == "__main__":
                         
                 name = os.path.join(root,'groundtruth_rect.txt')
                 if os.path.exists(name):
-                    gts = np.loadtxt(name, delimiter=',')
-                
+                    try:
+                        gts = np.loadtxt(name, delimiter=',')
+                    except ValueError:
+                        gts = np.loadtxt(name, delimiter='\t')
+
                 for i, f in enumerate(files):                    
                     frame = np.array(Image.open(os.path.join(images, f)))
                     if f.lower().endswith(('.png', '.jpg')):

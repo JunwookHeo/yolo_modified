@@ -103,7 +103,7 @@ def run(opt, image_folder):
                 unique_labels = detections[:, -1].cpu().unique()
                 n_cls_preds = len(unique_labels)
                 
-                max_iou = opt.tracking_thres
+                max_iou = 0 #opt.tracking_thres
 
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                     if int(cls_pred) not in target_cls:
